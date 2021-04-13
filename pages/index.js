@@ -1,65 +1,81 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import { useState } from 'react';
 
-export default function Home() {
+import { API_URL, GithubJob } from '../lib/api';
+import { Layout } from '../components/layout';
+import { SearchBox, SearchLocation } from '../components/search';
+import { Pagination } from '../components/pagination';
+import { JobCard } from '../components/job';
+import { SearchType } from '../components/search/search-type';
+import { Loader } from '../components/common';
+
+export const Home = (props) => {
+  const [jobs, setJobs] = useState(props.jobs);
+  const [loading, setLoading] = useState(false);
+  const [fullTime, setFullTime] = useState(false);
+  const [location, setLocation] = useState('');
+  const [page, setPage] = useState(0);
+  const handleSearch = (term) => {
+    setLoading(true);
+    fetch('/api', {
+      method: 'post',
+      body: JSON.stringify({
+        fullTime,
+        location,
+        page,
+        term,
+      }),
+    })
+      .then((res) => res.json())
+      .then(setJobs)
+      .then(() => setLoading(false))
+      .catch(console.log);
+  };
+  const handlePageChange = (count) => {
+    setPage(count - 1);
+    handleSearch();
+  };
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+    <Layout title="Home">
+      <SearchBox onSearch={handleSearch} />
+      <div className="responsive">
+        <div className="search-widgets">
+          <SearchType checked={fullTime} onChange={setFullTime} />
+          <SearchLocation location={location} onChange={setLocation} />
         </div>
-      </main>
+        <div className="full-width">
+          {loading ? (
+            <Loader />
+          ) : (
+            jobs.map((job) => <JobCard key={job.id} {...job} />)
+          )}
+          <Pagination
+            current={page + 1}
+            onChange={handlePageChange}
+            hasNext={jobs.length === 50}
+            disabled={loading}
+          />
+        </div>
+      </div>
+    </Layout>
+  );
+};
 
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
-  )
-}
+export const getServerSideProps = async () => {
+  try {
+    const data = await fetch(`${API_URL}.json`);
+    const json = await data.json();
+    return {
+      props: {
+        jobs: json,
+      },
+    };
+  } catch (err) {
+    return {
+      props: {
+        jobs: [],
+      },
+    };
+  }
+};
+
+export default Home;
